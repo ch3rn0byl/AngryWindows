@@ -42,7 +42,7 @@ If the strings are going to be modified, the length and the maximum buffer of th
 I've noticed a max buffer of around ~96 or so characters. If you go more than that, you will definitely overwrite the buffer in the percentage section. So instead of saying `complete`, you will get some of your characters in that data. 
 
 ## How to use
-To use the driver, issue the following commands inside an elevated debugger: 
+To use the driver, issue the following commands inside an elevated command prompt: 
 ```
 sc create <service name> binPath= <path to driver>/AngryWindows.sys type= kernel start= auto
 sc start <service name>
