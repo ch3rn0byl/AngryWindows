@@ -6,7 +6,7 @@
 ///================================================
 typedef struct _BSOD_INFORMATION
 {
-	UINT64 HalpPCIConfigReadHandlers = 0;
+	UINT64 Sadface = 0;
 	UINT64 EtwpLastBranchEntry = 0;
 	UINT64 AddressOfColorVar = 0;
 	UINT8 offset = 0;
@@ -21,7 +21,6 @@ typedef struct _BSOD_INFORMATION
 ///================================================
 /// Globals
 ///================================================
-EXTERN_C int _fltused;
 extern PBSOD_INFORMATION g_BsodInformation;
 
 

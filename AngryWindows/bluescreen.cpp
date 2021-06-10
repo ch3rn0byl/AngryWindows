@@ -21,33 +21,39 @@ NTSTATUS bluescreen::initialize()
 		return STATUS_NOT_FOUND;
 	}
 
-	cs_err csStatus = resolve::KeBugCheck2(KeBugCheckExAddress, &KeBugCheck2);
-	if (csStatus != CS_ERR_OK || KeBugCheck2 == 0)
+	NTSTATUS Status = resolve::KeBugCheck2(
+		reinterpret_cast<UINT64>(KeBugCheckExAddress), 
+		&KeBugCheck2
+	);
+	if (!NT_SUCCESS(Status) || KeBugCheck2 == 0)
 	{
 		DbgPrint("[%ws::%d] Unable to resolve KeBugCheck2\n", __FUNCTIONW__, __LINE__);
 		return STATUS_NOT_FOUND;
 	}
 
-	csStatus = resolve::KiDisplayBlueScreen(
-		reinterpret_cast<PVOID>(KeBugCheck2),
+	Status = resolve::KiDisplayBlueScreen(
+		KeBugCheck2,
 		&KiDisplayBlueScreen
 	);
-	if (csStatus != CS_ERR_OK || KiDisplayBlueScreen == 0)
+	if (!NT_SUCCESS(Status) || KiDisplayBlueScreen == 0)
 	{
 		DbgPrint("[%ws::%d] Unable to resolve KiDisplayBlueScreen\n", __FUNCTIONW__, __LINE__);
 		return STATUS_NOT_FOUND;
 	}
 
-	csStatus = resolve::BgpFwDisplayBugCheckScreen(
-		reinterpret_cast<PVOID>(KiDisplayBlueScreen),
+	Status = resolve::BgpFwDisplayBugCheckScreen(
+		KiDisplayBlueScreen,
 		&BgpFwDisplayBugCheckScreen
 	);
-	if (csStatus != CS_ERR_OK || BgpFwDisplayBugCheckScreen == 0)
+	if (!NT_SUCCESS(Status) || BgpFwDisplayBugCheckScreen == 0)
 	{
 		DbgPrint("[%ws::%d] Unable to resolve BgpFwDisplayBugCheckScreen\n", __FUNCTIONW__, __LINE__);
 		return STATUS_NOT_FOUND;
 	}
 
+	DbgPrint("Located BgpFwDisplayBugCheckScreen: %p\n", BgpFwDisplayBugCheckScreen);
+	resolve::Phrases(BgpFwDisplayBugCheckScreen);
+	/*
 	csStatus = resolve::HalpPCIConfigReadHandlers(
 		reinterpret_cast<PVOID>(BgpFwDisplayBugCheckScreen),
 		&g_BsodInformation->HalpPCIConfigReadHandlers
@@ -57,7 +63,7 @@ NTSTATUS bluescreen::initialize()
 		DbgPrint("[%ws::%d] Unable to resolve HalpPCIConfigReadHandlers\n", __FUNCTIONW__, __LINE__);
 		return STATUS_NOT_FOUND;
 	}
-
+	*/
 	return STATUS_SUCCESS;
 }
 
@@ -72,7 +78,8 @@ NTSTATUS bluescreen::initialize()
 NTSTATUS bluescreen::OverwriteSadFace()
 {
 	PHYSICAL_ADDRESS pa = MmGetPhysicalAddress(
-		reinterpret_cast<PVOID>(g_BsodInformation->HalpPCIConfigReadHandlers)
+		//reinterpret_cast<PVOID>(g_BsodInformation->HalpPCIConfigReadHandlers)
+		reinterpret_cast<PVOID>(g_BsodInformation->Sadface)
 	);
 
 	PUNICODE_STRING mappedAddress = static_cast<PUNICODE_STRING>(

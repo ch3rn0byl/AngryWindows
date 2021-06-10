@@ -3,8 +3,6 @@
 #include "typedefs.h"
 #include "bluescreen.h"
 
-int _fltused = 0;
-
 PBSOD_INFORMATION g_BsodInformation = nullptr;
 
 EXTERN_C NTSTATUS DriverEntry(PDRIVER_OBJECT, PUNICODE_STRING)
