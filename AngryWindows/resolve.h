@@ -1,5 +1,5 @@
 #pragma once
-#include "capstone/capstone.h"
+//#include "capstone/capstone.h"
 #include "typedefs.h"
 
 #include <ntdef.h>
@@ -13,24 +13,28 @@
 /// </summary>
 namespace resolve
 {
-	cs_err KeBugCheck2(
-		_In_ PVOID data,
-		_Out_ uint64_t* result
+	_Success_(return >= 0)
+	NTSTATUS KeBugCheck2(
+		_In_ UINT64 address,
+		_Out_ _Ret_maybenull_ PUINT64 result
 	);
 
-	cs_err KiDisplayBlueScreen(
-		_In_ PVOID data,
-		_Out_ uint64_t* result
+	_Success_(return >= 0)
+	NTSTATUS KiDisplayBlueScreen(
+		_In_ UINT64 address,
+		_Out_ _Ret_maybenull_ PUINT64 result
 	);
 
-	cs_err BgpFwDisplayBugCheckScreen(
-		_In_ PVOID data,
-		_Out_ uint64_t* result
+	_Success_(return >= 0)
+	NTSTATUS BgpFwDisplayBugCheckScreen(
+		_In_ UINT64 address,
+		_Out_ _Ret_maybenull_ PUINT64 result
 	);
 
-	cs_err HalpPCIConfigReadHandlers(
-		_In_ PVOID data,
-		_Out_ uint64_t* halpPciConfig
+	_Success_(return >= 0)
+	NTSTATUS Phrases(
+		_In_ UINT64 address
+		//_Out_ _Ret_maybenull_ PUINT64 halpPciConfig
 	);
 }
 

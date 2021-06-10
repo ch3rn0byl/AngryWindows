@@ -10,46 +10,59 @@
 /// <param name="data"></param>
 /// <param name="result"></param>
 /// <returns>STATUS_SUCCESS if successful</returns>
-cs_err resolve::KeBugCheck2(PVOID data, uint64_t* result)
+//NTSTATUS resolve::KeBugCheck2(PVOID data, PUINT64 result)
+NTSTATUS resolve::KeBugCheck2(UINT64 address, PUINT64 result)
 {
-	csh handle;
-	cs_insn* insn = nullptr;
+	UINT8 KeBugCheck2Sig[] = {
+		0x45, 0x33, 0xc9,	/// xor r9d, r9d
+		0x45, 0x33, 0xc0,	/// xor r8d, r8d
+		0x33, 0xd2,			/// xor edx, edx
+		0xe8				/// call nt!KeBugCheck2
+	};
 
-	cs_err csStatus = cs_open(CS_ARCH_X86, CS_MODE_64, &handle);
-	if (csStatus != CS_ERR_OK)
+	UINT8 EndOfFunction[] = {
+		0x90,	/// nop
+		0xc3,	/// ret
+		0xcc,	/// int 3
+		0xcc,	/// int 3
+		0xcc,	/// int 3
+		0xcc	/// int 3
+	};
+
+	size_t EndOfFunctionLength = 0;
+
+	do
 	{
-		return csStatus;
-	}
-
-	size_t NumberOfInsts = cs_disasm(
-		handle,
-		reinterpret_cast<const uint8_t*>(data),
-		0x150,
-		reinterpret_cast<uint64_t>(data),
-		0,
-		&insn
-	);
-	if (NumberOfInsts == 0)
-	{
-		csStatus = cs_errno(handle);
-		cs_close(&handle);
-
-		return csStatus;
-	}
-
-	for (size_t i = 0; i < NumberOfInsts; i++)
-	{
-		if (strcmp(insn[i].mnemonic, "call") == 0 && strcmp(insn[i + 1].mnemonic, "nop") == 0)
+		size_t length = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			KeBugCheck2Sig,
+			sizeof(KeBugCheck2Sig)
+		);
+		if (length == sizeof(KeBugCheck2Sig))
 		{
-			*result = _strtoui64(insn[i].op_str, NULL, 16);
-			break;
+			UINT32 offset = 0;
+
+			RtlCopyMemory(
+				&offset, 
+				reinterpret_cast<PVOID>(address + length), 
+				sizeof(offset)
+			);
+
+			*result = address + length + offset + 4;
+
+			return STATUS_SUCCESS;
 		}
-	}
 
-	cs_free(insn, NumberOfInsts);
-	cs_close(&handle);
+		EndOfFunctionLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			EndOfFunction,
+			sizeof(EndOfFunction)
+		);
 
-	return csStatus;
+		address++;
+	} while (EndOfFunctionLength != sizeof(EndOfFunction));
+	
+	return STATUS_NOT_FOUND;
 }
 
 /// <summary>
@@ -61,46 +74,58 @@ cs_err resolve::KeBugCheck2(PVOID data, uint64_t* result)
 /// <param name="data"></param>
 /// <param name="result"></param>
 /// <returns>STATUS_SUCCESS if successfull</returns>
-cs_err resolve::KiDisplayBlueScreen(PVOID data, uint64_t* result)
+NTSTATUS resolve::KiDisplayBlueScreen(UINT64 address, PUINT64 result)
 {
-	csh handle;
-	cs_insn* insn = nullptr;
+	UINT8 KiDisplayBlueScreenSig[] = {
+		0x0f, 0x45, 0xc1,	/// cmovne eax, ecx
+		0x8b, 0xc8,			/// mov ecx, eax
+		0x83, 0xc9, 0x01,	/// or ecx, 1
+		0x45, 0x84, 0xf6,	/// test r14b, r14b
+		0x0f, 0x45, 0xc8,	/// cmovne ecx, eax
+		0xe8				/// call nt!KiDisplayBlueScreen
+	};
 
-	cs_err csStatus = cs_open(CS_ARCH_X86, CS_MODE_64, &handle);
-	if (csStatus != CS_ERR_OK)
+	UINT8 EndOfFunction[] = {
+		0x5f,	/// pop rdi
+		0x5e,	/// pop rsi
+		0x5d,	/// pop rbp
+		0xc3	/// ret
+	};
+
+	size_t EndOfFunctionLength = 0;
+
+	do
 	{
-		return csStatus;
-	}
-
-	size_t NumberOfInsts = cs_disasm(
-		handle,
-		reinterpret_cast<const uint8_t*>(data),
-		0xb00,
-		reinterpret_cast<uint64_t>(data),
-		0,
-		&insn
-	);
-	if (NumberOfInsts == 0)
-	{
-		csStatus = cs_errno(handle);
-		cs_close(&handle);
-
-		return csStatus;
-	}
-
-	for (size_t i = 0; i < NumberOfInsts; i++)
-	{
-		if (strcmp(insn[i].mnemonic, "cmovne") == 0 && strcmp(insn[i].op_str, "ecx, eax") == 0)
+		size_t length = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			KiDisplayBlueScreenSig,
+			sizeof(KiDisplayBlueScreenSig)
+		);
+		if (length == sizeof(KiDisplayBlueScreenSig))
 		{
-			*result = _strtoui64(insn[i + 1].op_str, NULL, 16);
-			break;
+			UINT32 offset = 0;
+
+			RtlCopyMemory(
+				&offset,
+				reinterpret_cast<PVOID>(address + length),
+				sizeof(offset)
+			);
+
+			*result = address + length + offset + 4;
+
+			return STATUS_SUCCESS;
 		}
-	}
 
-	cs_free(insn, NumberOfInsts);
-	cs_close(&handle);
+		EndOfFunctionLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			EndOfFunction,
+			sizeof(EndOfFunction)
+		);
 
-	return csStatus;
+		address++;
+	} while (EndOfFunctionLength != sizeof(EndOfFunction));
+
+	return STATUS_NOT_FOUND;
 }
 
 /// <summary>
@@ -113,46 +138,77 @@ cs_err resolve::KiDisplayBlueScreen(PVOID data, uint64_t* result)
 /// <param name="data"></param>
 /// <param name="result"></param>
 /// <returns>STATUS_SUCCESS if successful</returns>
-cs_err resolve::BgpFwDisplayBugCheckScreen(PVOID data, uint64_t* result)
+NTSTATUS resolve::BgpFwDisplayBugCheckScreen(UINT64 address, PUINT64 result)
 {
-	csh handle;
-	cs_insn* insn = nullptr;
+	UINT8 BgpFwDisplayBugCheckScreen2002Sig[] = {
+		0x4c, 0x8b, 0xc3,	/// mov r8, rbx
+		0x48, 0x8b, 0xd6,	/// mov rdx, rsi
+		0x41, 0x8b, 0xcf,	/// mov ecx, r15d
+		0xe8				/// call nt!BgpFwDisplayBugCheckScreen
+	};
 
-	cs_err csStatus = cs_open(CS_ARCH_X86, CS_MODE_64, &handle);
-	if (csStatus != CS_ERR_OK)
+	UINT8 BgpFwDisplayBugCheckScreen1909Sig[] = {
+		0x4c, 0x8b, 0xc3,	/// mov r8, rbx
+		0x49, 0x8b, 0xd7,	/// mov rdx, r15
+		0x41, 0x8b, 0xce,	/// mov ecx, r14d
+		0xe8				/// call nt!BgpFwDisplayBugCheckScreen
+	};
+
+	UINT8 EndOfFunction[] = {
+		0x41, 0x5d, /// pop r13
+		0x41, 0x5c, /// pop r12
+		0x5d,		/// pop rbp
+		0xc3		/// ret
+	};
+
+	size_t EndOfFunctionLength = 0;
+	size_t length = 0;
+	UINT32 offset = 0;
+
+	do
 	{
-		return csStatus;
-	}
+		size_t Length2002 = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			BgpFwDisplayBugCheckScreen2002Sig,
+			sizeof(BgpFwDisplayBugCheckScreen2002Sig)
+		);
 
-	size_t NumberOfInsts = cs_disasm(
-		handle,
-		reinterpret_cast<const uint8_t*>(data),
-		0x250,
-		reinterpret_cast<uint64_t>(data),
-		0,
-		&insn
-	);
-	if (NumberOfInsts == 0)
-	{
-		csStatus = cs_errno(handle);
-		cs_close(&handle);
-
-		return csStatus;
-	}
-
-	for (size_t i = 0; i < NumberOfInsts; i++)
-	{
-		if (strcmp(insn[i].mnemonic, "call") == 0 && strstr(insn[i + 1].op_str, "rdi, qword ptr") != 0)
+		size_t Length1909 = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			BgpFwDisplayBugCheckScreen1909Sig,
+			sizeof(BgpFwDisplayBugCheckScreen1909Sig)
+		);
+		if (Length2002 == sizeof(BgpFwDisplayBugCheckScreen2002Sig))
 		{
-			*result = _strtoui64(insn[i].op_str, NULL, 16);
+			length = Length2002;
 			break;
 		}
-	}
+		else if (Length1909 == sizeof(BgpFwDisplayBugCheckScreen1909Sig))
+		{
+			length = Length1909;
+			break;
+		}
 
-	cs_free(insn, NumberOfInsts);
-	cs_close(&handle);
+		EndOfFunctionLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			EndOfFunction,
+			sizeof(EndOfFunction)
+		);
+		if (EndOfFunctionLength == sizeof(EndOfFunction))
+			return STATUS_NOT_FOUND;
 
-	return csStatus;
+		address++;
+	} while (EndOfFunctionLength != sizeof(EndOfFunction));
+
+	RtlCopyMemory(
+		&offset,
+		reinterpret_cast<PVOID>(address + length),
+		sizeof(offset)
+	);
+
+	*result = address + length + offset + 4;
+
+	return STATUS_SUCCESS;
 }
 
 /// <summary>
@@ -176,80 +232,104 @@ cs_err resolve::BgpFwDisplayBugCheckScreen(PVOID data, uint64_t* result)
 /// <param name="data"></param>
 /// <param name="halpPciConfig"></param>
 /// <returns>STATUS_SUCCESS if successful</returns>
-cs_err resolve::HalpPCIConfigReadHandlers(PVOID data, uint64_t* halpPciConfig)
+//cs_err resolve::HalpPCIConfigReadHandlers(PVOID data, uint64_t* halpPciConfig)
+NTSTATUS resolve::Phrases(UINT64 address)//, PUINT64 halpPciConfig)
 {
-	csh handle;
-	cs_insn* insn = nullptr;
+	UINT8 EtwpLastBranchSig[] = {
+		0xbf, 0xc8, 0x01, 0x00, 0x00	/// mov edi, 1c8h
+	};
 
-	cs_err csStatus = cs_open(CS_ARCH_X86, CS_MODE_64, &handle);
-	if (csStatus != CS_ERR_OK)
+	UINT8 SadfaceSig2004[] = {
+		0x41, 0x8b, 0x54, 0xf7, 0x0c,	/// mov edx, dword ptr [r15 + rsi * 8 + 0ch]
+		0x44, 0x8b, 0xcb,				/// mov r9d, ebx
+		0x48, 0x8d						/// lea rcx, [nt!HalpPciConfigReadHandlers+0x18]
+	};
+
+	UINT8 SadfaceSig1909[] = {
+		0x41, 0x8b, 0x54, 0xf4, 0x0c,	/// mov edx, dword ptr [r12 + rsi * 8 + 0ch]
+		0x44, 0x8b, 0xcb,				/// mov r9d, ebx
+		0x48, 0x8d						/// lea rcx, [nt!ExpLeapSecondRegKeyPath+0x28e0]
+	};
+
+	UINT8 ColorOffsetSig[] = {
+		0xeb, 0x03,			/// jmp nt!BgpFwDiisplayBugCheckScreen+0xcd
+		0x8b, 0x48, 0x28	/// mov ecx, dword ptr [rax + 28h]
+	};
+
+	UINT8 MessagesSig[] = {
+		0x4c, 0x8d, 0x15	/// lea r10, [nt!EtwpLastBranchLookAsideList]
+	};
+
+	UINT8 EndOfFunction[] = {
+		0x41, 0x5f, /// pop r15
+		0x41, 0x5e, /// pop r14
+		0x41, 0x5d, /// pop r13
+		0x41, 0x5c, /// pop r12
+		//0x5f,		/// pop rdi
+		//0xc3
+	};
+
+	bool bIsNotEndOfFunction = true;
+
+	do
 	{
-		return csStatus;
-	}
+		//DbgPrint("chekcing: %p\n", address);
+		size_t EtwpLastBranchLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address + 7),
+			EtwpLastBranchSig,
+			sizeof(EtwpLastBranchSig)
+		);
 
-	size_t NumberOfInsts = cs_disasm(
-		handle,
-		reinterpret_cast<const uint8_t*>(data),
-		0x250,
-		reinterpret_cast<uint64_t>(data),
-		0,
-		&insn
-	);
-	if (NumberOfInsts == 0)
-	{
-		csStatus = cs_errno(handle);
-		cs_close(&handle);
+		size_t ColorOffsetLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			ColorOffsetSig,
+			sizeof(ColorOffsetSig)
+		);
 
-		return csStatus;
-	}
+		size_t SadFaceLength2004 = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			SadfaceSig2004,
+			sizeof(SadfaceSig2004)
+		);
 
-	for (size_t i = 0; i < NumberOfInsts; i++)
-	{
-		if (strcmp(insn[i + 1].mnemonic, "mov") == 0 && strcmp(insn[i + 1].op_str, "edi, 0x1c8") == 0)
+		size_t SadFaceLength1909 = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			SadfaceSig1909,
+			sizeof(SadfaceSig1909)
+		);
+
+		size_t MessagesSigLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			MessagesSig,
+			sizeof(MessagesSig)
+		);
+
+		size_t EndOfFunctionLength = RtlCompareMemory(
+			reinterpret_cast<PVOID>(address),
+			EndOfFunction,
+			sizeof(EndOfFunction)
+		);
+		if (EndOfFunctionLength == sizeof(EndOfFunction))
 		{
+			bIsNotEndOfFunction = false;
+		}
+		else if (MessagesSigLength == sizeof(MessagesSig))
+		{
+			UINT64 TempAddress = address;
 			UINT32 offset = 0;
-			RtlCopyMemory(&offset, &insn[i].bytes[3], sizeof(UINT32));
 
-			offset += insn[i].size;
-
-			g_BsodInformation->EtwpLastBranchEntry = insn[i].address + offset;
-		}
-		else if (strcmp(insn[i].mnemonic, "mov") == 0 && strstr(insn[i].op_str, "rax, qword ptr") != 0)
-		{
-			g_BsodInformation->offset = insn[i].bytes[insn[i].size - 1];
-		}
-		else if (strcmp(insn[i].mnemonic, "mov") == 0 && strstr(insn[i].op_str, "ecx, dword ptr [rax + ") != 0)
-		{
-			g_BsodInformation->colorOffset = insn[i].bytes[insn[i].size - 1];
-		}
-		else if (strcmp(insn[i].mnemonic, "mov") == 0 &&
-			strcmp(insn[i].op_str, "r9d, ebx") == 0 &&
-			strcmp(insn[i + 1].mnemonic, "lea") == 0)
-		{
-			UINT64 mask = 0xffffffff00000000;
-			UINT32 offset = 0;
-
-			RtlCopyMemory(&offset, &insn[i + 1].bytes[3], sizeof(UINT32));
-
-			UINT64 Result = insn[i + 1].address;
-			Result += mask | offset;
-			Result -= 1;
-			Result += 8;
-
-			*halpPciConfig = Result;
-		}
-		else if (strcmp(insn[i].mnemonic, "lea") == 0 && strstr(insn[i].op_str, "r10") != 0)
-		{
-			UINT32 offset = 0;
-			RtlCopyMemory(&offset, &insn[i].bytes[3], sizeof(UINT32));
-
-			offset += insn[i].size;
+			RtlCopyMemory(
+				&offset,
+				reinterpret_cast<PVOID>(TempAddress + MessagesSigLength),
+				sizeof(offset)
+			);
 
 			g_BsodInformation->BsodMessageOne = reinterpret_cast<PUNICODE_STRING>(
-				insn[i].address + offset
+				TempAddress + MessagesSigLength + offset + 4
 				);
 
 			PUNICODE_STRING temp = g_BsodInformation->BsodMessageOne;
+
 			for (UINT8 next = 0; next < sizeof(UNICODE_STRING); next++, temp++)
 			{
 				/*
@@ -275,15 +355,80 @@ cs_err resolve::HalpPCIConfigReadHandlers(PVOID data, uint64_t* halpPciConfig)
 					g_BsodInformation->BsodMessageTwo = temp;
 				}
 			}
-
-			break;
 		}
-	}
+		else if (EtwpLastBranchLength == sizeof(EtwpLastBranchSig))
+		{
+			UINT64 TempAddress = address;
+			UINT32 offset = 0;
 
-	cs_free(insn, NumberOfInsts);
-	cs_close(&handle);
+			RtlCopyMemory(
+				&g_BsodInformation->offset,
+				reinterpret_cast<PVOID>(TempAddress + 0x12),
+				sizeof(g_BsodInformation->offset)
+			);
 
-	return csStatus;
+			TempAddress += 3;
+
+			RtlCopyMemory(
+				&offset,
+				reinterpret_cast<PVOID>(TempAddress),
+				sizeof(offset)
+			);
+
+			TempAddress += offset + 4;
+
+			g_BsodInformation->EtwpLastBranchEntry = TempAddress;
+		}
+		else if (ColorOffsetLength == sizeof(ColorOffsetSig))
+		{			
+			RtlCopyMemory(
+				&g_BsodInformation->colorOffset,
+				reinterpret_cast<PVOID>(address + 4),
+				sizeof(g_BsodInformation->colorOffset)
+			);
+		}
+		else if (SadFaceLength2004 == sizeof(SadfaceSig2004))
+		{
+			UINT64 TempAddress = address;
+			UINT64 mask = 0xffffffff00000000;
+			UINT32 offset = 0;
+
+			TempAddress += SadFaceLength2004 + 1;
+			
+			RtlCopyMemory(
+				&offset,
+				reinterpret_cast<PVOID>(TempAddress),
+				sizeof(offset)
+			);
+
+			mask |= offset;
+
+			TempAddress += mask + 4;
+
+			g_BsodInformation->Sadface = TempAddress;
+		}
+		else if (SadFaceLength1909 == sizeof(SadfaceSig1909))
+		{
+			UINT64 TempAddress = address;
+			UINT32 offset = 0;
+
+			TempAddress += SadFaceLength1909 + 1;
+
+			RtlCopyMemory(
+				&offset,
+				reinterpret_cast<PVOID>(TempAddress),
+				sizeof(offset)
+			);
+
+			TempAddress += offset + 4;
+
+			g_BsodInformation->Sadface = TempAddress;
+		}
+
+		address++;
+	} while (bIsNotEndOfFunction);
+
+	return STATUS_SUCCESS;
 }
 
 
