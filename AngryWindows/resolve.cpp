@@ -10,7 +10,6 @@
 /// <param name="data"></param>
 /// <param name="result"></param>
 /// <returns>STATUS_SUCCESS if successful</returns>
-//NTSTATUS resolve::KeBugCheck2(PVOID data, PUINT64 result)
 NTSTATUS resolve::KeBugCheck2(UINT64 address, PUINT64 result)
 {
 	UINT8 KeBugCheck2Sig[] = {
@@ -232,7 +231,6 @@ NTSTATUS resolve::BgpFwDisplayBugCheckScreen(UINT64 address, PUINT64 result)
 /// <param name="data"></param>
 /// <param name="halpPciConfig"></param>
 /// <returns>STATUS_SUCCESS if successful</returns>
-//cs_err resolve::HalpPCIConfigReadHandlers(PVOID data, uint64_t* halpPciConfig)
 NTSTATUS resolve::Phrases(UINT64 address)//, PUINT64 halpPciConfig)
 {
 	UINT8 EtwpLastBranchSig[] = {
@@ -265,15 +263,12 @@ NTSTATUS resolve::Phrases(UINT64 address)//, PUINT64 halpPciConfig)
 		0x41, 0x5e, /// pop r14
 		0x41, 0x5d, /// pop r13
 		0x41, 0x5c, /// pop r12
-		//0x5f,		/// pop rdi
-		//0xc3
 	};
 
 	bool bIsNotEndOfFunction = true;
 
 	do
 	{
-		//DbgPrint("chekcing: %p\n", address);
 		size_t EtwpLastBranchLength = RtlCompareMemory(
 			reinterpret_cast<PVOID>(address + 7),
 			EtwpLastBranchSig,

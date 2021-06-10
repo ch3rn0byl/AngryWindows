@@ -51,19 +51,8 @@ NTSTATUS bluescreen::initialize()
 		return STATUS_NOT_FOUND;
 	}
 
-	DbgPrint("Located BgpFwDisplayBugCheckScreen: %p\n", BgpFwDisplayBugCheckScreen);
 	resolve::Phrases(BgpFwDisplayBugCheckScreen);
-	/*
-	csStatus = resolve::HalpPCIConfigReadHandlers(
-		reinterpret_cast<PVOID>(BgpFwDisplayBugCheckScreen),
-		&g_BsodInformation->HalpPCIConfigReadHandlers
-	);
-	if (csStatus != CS_ERR_OK || g_BsodInformation->HalpPCIConfigReadHandlers == 0)
-	{
-		DbgPrint("[%ws::%d] Unable to resolve HalpPCIConfigReadHandlers\n", __FUNCTIONW__, __LINE__);
-		return STATUS_NOT_FOUND;
-	}
-	*/
+
 	return STATUS_SUCCESS;
 }
 
